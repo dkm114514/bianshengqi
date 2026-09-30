@@ -26,6 +26,8 @@ ModelEntry = Dict[str, Optional[str]]
 
 def rvc_root() -> Path:
     """RVC install root."""
+    if (PROJECT_ROOT / "offline_bundle.json").is_file():
+        return PROJECT_ROOT / "RVC"
     for name in ("BSQ_RVC_ROOT", "RVC_ROOT"):
         value = os.environ.get(name)
         if value:

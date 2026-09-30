@@ -137,6 +137,14 @@ def _download_model(dst) -> None:
 
 def _resolve_model_dir(model_dir=None) -> pathlib.Path:
     """Locate (downloading if needed) the model dir and export the env var."""
+    # Offline releases must never repair missing assets over the network.
+    offline = _PROJECT_MODEL_DIR.parent.parent / "offline_bundle.json"
+    if offline.is_file() or os.environ.get("BSQ_OFFLINE") == "1":
+        path = pathlib.Path(model_dir) if model_dir is not None else _PROJECT_MODEL_DIR
+        if not _dir_complete(path):
+            raise FileNotFoundError("离线安装包缺少 DFN3 模型，请重新安装完整发行包：%s" % path)
+        os.environ[_ENV_MODEL_DIR] = str(path)
+        return path
     if model_dir is not None:
         path = pathlib.Path(model_dir)
         if not _dir_complete(path):

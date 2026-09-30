@@ -15,6 +15,34 @@ from tools.package_source import build_archive
 
 
 class SourcePublicationTests(unittest.TestCase):
+    def test_offline_dfn_exports_bundled_directory_to_the_third_party_loader(self):
+        from dsp import dfn
+        with tempfile.TemporaryDirectory() as directory:
+            assets = Path(directory) / "models" / "dfn3-512-v1"
+            assets.mkdir(parents=True)
+            for name in dfn._MODEL_FILES:
+                (assets / name).write_bytes(b"fixture")
+            with patch.object(dfn, "_PROJECT_MODEL_DIR", assets), patch.dict(os.environ, {"BSQ_OFFLINE": "1"}):
+                self.assertEqual(dfn._resolve_model_dir(), assets)
+                self.assertEqual(os.environ[dfn._ENV_MODEL_DIR], str(assets))
+
+    def test_offline_marker_prefers_bundled_runtime_over_machine_environment(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "offline_bundle.json").write_text("{}", encoding="utf-8")
+            with patch.object(models, "PROJECT_ROOT", root), patch.dict(os.environ, {"RVC_ROOT": "old-install"}):
+                self.assertEqual(models.rvc_root(), root / "RVC")
+
+    def test_missing_offline_dfn_models_never_start_a_download(self):
+        from dsp import dfn
+        with tempfile.TemporaryDirectory() as directory:
+            missing = Path(directory) / "models" / "dfn3-512-v1"
+            with patch.object(dfn, "_PROJECT_MODEL_DIR", missing), patch.dict(os.environ, {"BSQ_OFFLINE": "1"}), \
+                    patch.object(dfn, "_download_model") as download:
+                with self.assertRaisesRegex(FileNotFoundError, "离线安装包"):
+                    dfn._resolve_model_dir()
+                download.assert_not_called()
+
     def test_runtime_selection_and_local_fallback(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

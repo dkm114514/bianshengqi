@@ -2,6 +2,13 @@
 chcp 65001 >nul
 cd /d "%~dp0"
 
+if exist "%~dp0offline_bundle.json" (
+  set "BSQ_RVC_ROOT=%~dp0RVC"
+  set "RVC_ROOT=%~dp0RVC"
+  set "RVC_RUNTIME=%~dp0RVC\runtime\python.exe"
+  set "BSQ_OFFLINE=1"
+  goto run
+)
 if defined BSQ_RVC_ROOT (
   set "RVC_RUNTIME=%BSQ_RVC_ROOT%\runtime\python.exe"
   goto run

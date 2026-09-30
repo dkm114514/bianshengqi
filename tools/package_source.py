@@ -9,10 +9,10 @@ ROOT = Path(__file__).resolve().parent.parent
 ROOT_FILES = (
     ".gitignore", ".gitattributes", "README.md", "requirements.txt", "requirements-devsetup.txt",
     "profiles.example.json", "启动变声器.bat", "main.py", "selfcheck.py",
-    "smoke_test.py", "LICENSE",
+    "smoke_test.py", "LICENSE", "THIRD_PARTY_NOTICES.md",
 )
-SOURCE_DIRS = ("app", "dsp", "engine", "tools", "tests", "docs")
-SOURCE_SUFFIXES = {".py", ".md"}
+SOURCE_DIRS = ("app", "dsp", "engine", "tools", "tests", "docs", "installer")
+SOURCE_SUFFIXES = {".py", ".md", ".iss", ".isl"}
 
 
 def source_files(root=ROOT):

@@ -5,25 +5,43 @@
 
 音频链路：麦克风 → 降噪 / 声纹过滤 → RVC → SOLA 拼接 → 自动增益 → 虚拟麦克风 / 监听。
 
-本仓库提供源码。RVC 整合包、模型权重、音频驱动和个人声纹需要自行准备。
-目前验证环境为 Windows、NVIDIA CUDA、RVC 内置 Python 3.9，未验证其他平台和新版本 RVC。
+## 直接安装使用（推荐）
 
-## 准备环境
+打开 [GitHub Releases](https://github.com/dkm114514/bianshengqi/releases/latest)，下载 **Windows x64 离线安装包**。
+双击 `bianshengqi-0.1.0-windows-x64-setup.exe`，选择安装目录，安装后使用桌面快捷方式启动。
+如果发行包包含同名 `setup-*.bin` 数据文件，请将它们全部下载到同一文件夹，再运行 `.exe`。
 
-1. 准备可运行的 [RVC](https://github.com/RVC-Project/Retrieval-based-Voice-Conversion-WebUI) Windows 整合包。
-   本程序调用其中的 `infer/lib/rtrvc.py` 和 `tools/torchgate`。
-   保留整合包原有的 PyTorch、torchaudio、CUDA 和 fairseq 配套版本。
-2. 使用该整合包的 Python 安装附加依赖，而不是系统 Python：
+离线安装包已经包含：
 
-   ```powershell
-   $env:RVC_ROOT = 'D:\RVC'
-   & "$env:RVC_ROOT\runtime\python.exe" -m pip install -r requirements.txt
-   ```
+- Python 3.9 和已验证的 PyTorch/CUDA 11.8 运行环境；无需安装 Python、pip 或完整 RVC 整合包。
+- RVC 推理引擎、HuBERT、RMVPE，以及默认的 `bb48k` 音色。
+- FreeSimpleGUI、音频依赖、CAM++ 声纹模型、Silero VAD、DFN3 降噪模型。
+- 原版 VB-CABLE 安装程序及厂商说明。
 
-   `requirements.txt` 记录本机验证过的附加依赖版本；它不是一个全新的 RVC 环境安装清单。
-   对应已验证核心版本为 torch 2.0.0+cu118、torchaudio 2.0.1。
-3. 安装 [VB-CABLE](https://download.vb-audio.com/) 后，在聊天或录音软件中选择它的录音端点（通常是 `CABLE Output`）。
-   本程序输出端选择 `CABLE Input`；重命名后的端点也可用。
+**安装和首次运行都不需要联网下载依赖或模型。**
+首次使用可在安装完成页面勾选“安装 VB-CABLE”，按原版安装窗口操作并重启电脑；已有该驱动时跳过。
+VB-CABLE 是 VB-Audio 的 donationware，欢迎到厂商网站捐赠或支付许可证费用。
+本程序输出端选择 `CABLE Input`，聊天/录音软件的麦克风选择 `CABLE Output`。
+原安装文件也保存在安装目录 `drivers/vbcable/`，开始菜单提供对应快捷方式。
+
+首次启动只需选择自己的麦克风和监听设备。需要声纹过滤时，在界面录入或导入自己的声纹。
+安装包不包含作者的声纹、声纹备份和个人配置。
+
+当前验证环境为 Windows x64、NVIDIA CUDA 11.8；AMD/Intel、RTX 50 系及其他平台未验证。
+源码的 ZIP 和离线安装包用途不同：想直接使用请选择上面的安装包；想开发修改可按以下方式运行源码。
+
+## 开发环境（仅运行源码时需要）
+
+源码保留外部 RVC 环境的兼容入口。准备含 `runtime/python.exe` 的 RVC 安装目录，
+用该 Python 安装附加依赖：
+
+```powershell
+$env:RVC_ROOT = 'D:\RVC'
+& "$env:RVC_ROOT\runtime\python.exe" -m pip install -r requirements.txt
+```
+
+`requirements.txt` 记录本机验证过的附加依赖版本，不包含重建 RVC 核心环境的全部步骤。
+对应核心版本为 torch 2.0.0+cu118、torchaudio 2.0.1。保留原有 CUDA/fairseq 配套版本。
 
 ## 配置运行路径
 
@@ -47,11 +65,11 @@ $env:RVC_ROOT = 'D:\RVC'
 模型权重默认读取 RVC 的 `assets/weights/*.pth`，索引读取 `logs/*.index`。
 也可放在项目自身的 `assets/weights/` 和 `logs/`，或通过 `BSQ_WEIGHTS_DIR`、`BSQ_INDEX_DIR` 指定。
 索引按权重同名匹配；`bb48k.pth` 特别匹配 `guanguanV1.index`。没有索引也可使用模型。
-模型文件均不随源码发布。
+模型不进入 Git 源码历史，随离线安装包发布。
 
 ## 声纹和降噪模型
 
-启用声纹过滤前，需在项目 `models/` 放置兼容的 CAM++ 和 Silero ONNX。
+离线安装包已包含以下模型。只有运行源码时，才需在项目 `models/` 放置兼容的 CAM++ 和 Silero ONNX。
 已验证文件为：
 
 - `3dspeaker_speech_campplus_sv_zh-cn_16k-common.onnx`
@@ -60,7 +78,7 @@ $env:RVC_ROOT = 'D:\RVC'
 声纹模型可从 [sherpa-onnx 官方模型列表](https://k2-fsa.github.io/sherpa/onnx/pretrained_models/index.html) 获取。
 声纹迁移时应使用相同模型，192 维声纹不能直接用于其他维度的模型。
 
-DFN3 首次运行会下载模型到 `models/dfn3-512-v1/` 并校验哈希；离线使用需提前准备其中的
+源码模式的 DFN3 首次运行会下载模型到 `models/dfn3-512-v1/` 并校验哈希；离线安装包已包含其中的
 `denoiser_model.onnx`、`initial_states.npz`、`meta.json`。
 下载来源、镜像和校验逻辑见 `dsp/dfn.py`。首次使用可先关闭未准备好的声纹过滤。
 
@@ -107,6 +125,8 @@ engine/                       模型扫描、默认参数、RVC 和音频链路
 dsp/                          降噪、VAD、声纹、增益、拼接等信号处理
 tools/devsetup.py             可选的 Windows 音频端点管理工具
 tools/package_source.py       源码打包工具
+tools/package_offline.py      离线环境和模型打包工具
+installer/windows.iss         Windows 离线安装程序定义
 tests/                        回归测试，使用合成声纹
 profiles.example.json         可公开的配置示例
 requirements*.txt             附加依赖
@@ -144,3 +164,25 @@ requirements*.txt             附加依赖
 直接推送旧仓库会带上这些历史内容；本源码包不携带历史。
 
 暂未添加源码许可证。RVC、音频驱动、第三方依赖及模型各自的许可仍需遵守。
+
+## 制作离线安装包（开发者）
+
+在已验证的 Windows RVC 环境中运行：
+
+```powershell
+& "$env:RVC_ROOT\runtime\python.exe" -X utf8 tools/package_offline.py
+& ".\dist\offline-app\RVC\runtime\python.exe" -X utf8 .\dist\offline-app\tools\verify_offline_bundle.py --full
+```
+
+`dist/offline-app/` 是包含运行环境、默认模型和通用模型的完整应用目录。
+打包脚本使用当前已验证环境，不下载依赖；缺少资产时明确报错。默认音色为 `bb48k.pth`，
+可用 `--model` 指定要随包分发的其他权重。
+构建时保留第三方许可，排除个人配置、声纹、训练索引和缓存。
+
+安装 Inno Setup 6.5+ 后编译 `installer/windows.iss`，传入 `BundleDir`、`ReleaseDir`。
+若单个安装文件超过 GitHub 的 2 GiB 发行资产限制，使用 `/DSplit=yes` 生成离线数据分卷。
+安装包使用当前用户的可写目录；程序自身不需要管理员权限，VB-CABLE 驱动安装需要。
+卸载只移除随包文件，不主动删除后来录入的声纹和本机配置。
+
+安装包和模型放在 Releases，源码和打包定义放在仓库；无需将巨大的运行环境写入 Git 历史。
+第三方许可和 VB-CABLE donationware 说明见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
