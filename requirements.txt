@@ -1,0 +1,13 @@
+# Additional dependencies for the existing RVC Windows Python 3.9 runtime.
+# Keep its bundled torch / torchaudio / CUDA / fairseq versions unchanged.
+FreeSimpleGUI==5.1.0
+numpy==1.23.5
+librosa==0.9.1
+sounddevice==0.4.6
+soundfile==0.11.0
+scipy==1.9.3
+onnxruntime==1.19.2
+sherpa-onnx==1.13.8
+deepfilter-stream==0.1.0
+psutil==7.2.2
+comtypes==1.4.16

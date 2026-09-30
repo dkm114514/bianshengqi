@@ -1,0 +1,29 @@
+{
+  "active": "bb48k",
+  "denoise_mode": "dfn3",
+  "voice_gate": true,
+  "voice_gate_threshold": 0.2,
+  "agc": true,
+  "agc_target_dbfs": -20.0,
+  "input_device": "",
+  "monitor_device": "",
+  "monitor_on": true,
+  "models": {
+    "bb48k": {
+      "pth": "",
+      "index": "",
+      "pitch": 16,
+      "formant": 0.0,
+      "index_rate": 0.0,
+      "block_time": 0.15,
+      "crossfade_time": 0.01,
+      "extra_time": 4.0,
+      "threhold": -60,
+      "I_noise_reduce": true,
+      "O_noise_reduce": true,
+      "rms_mix_rate": 0.0,
+      "f0method": "rmvpe",
+      "n_cpu": 4
+    }
+  }
+}
