@@ -4,6 +4,8 @@ out_dev/
 downloads/
 .tower/
 models/
+data/
+cache/
 out/
 dist/
 .video_agent/

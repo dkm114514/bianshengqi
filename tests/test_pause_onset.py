@@ -181,7 +181,9 @@ class PauseOnsetTests(unittest.TestCase):
 
                 def delayed_decide(wav):
                     entered.set()
-                    if not release.wait(2):
+                    # Cold tensor initialization can be slow when running the full suite.
+                    # The assertion concerns stale results, not CPU scheduling within two seconds.
+                    if not release.wait(10):
                         raise TimeoutError("test did not release the decision")
                     if fail:
                         raise ValueError("old utterance failure")

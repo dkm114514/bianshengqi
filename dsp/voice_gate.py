@@ -57,7 +57,7 @@ PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 #: Model dir, shared with app.gui.
 DEFAULT_MODEL_DIR = os.path.join(PROJECT_ROOT, "models")
 #: Default voiceprint profile path, shared with app.gui.
-DEFAULT_PROFILE_PATH = os.path.join(DEFAULT_MODEL_DIR, "voice_profile.npz")
+DEFAULT_PROFILE_PATH = os.path.join(os.path.dirname(DEFAULT_MODEL_DIR), "data", "voice_profile.npz")
 
 #: Model filename keywords (lowercased substring match).
 _SPEAKER_KEYWORDS = ("campplus", "cam++")

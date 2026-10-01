@@ -8,7 +8,7 @@ import zipfile
 ROOT = Path(__file__).resolve().parent.parent
 ROOT_FILES = (
     ".gitignore", ".gitattributes", "README.md", "requirements.txt", "requirements-devsetup.txt",
-    "profiles.example.json", "启动变声器.bat", "main.py", "selfcheck.py",
+    "profiles.example.json", "启动变声器.bat", "安装或卸载虚拟声卡.bat", "main.py", "selfcheck.py",
     "smoke_test.py", "LICENSE", "THIRD_PARTY_NOTICES.md",
 )
 SOURCE_DIRS = ("app", "dsp", "engine", "tools", "tests", "docs", "installer")

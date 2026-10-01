@@ -27,9 +27,12 @@ import traceback
 import FreeSimpleGUI as sg
 
 from engine.defaults import DEFAULT_ACTIVE_MODEL, DEFAULT_MODEL_PROFILE, DEFAULT_TOP_CONFIG
+from app.runtime import DATA_DIR, log_error
+from app.storage import atomic_write_json
+from app.version import VERSION
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PROFILES_PATH = os.path.join(PROJECT_ROOT, "profiles.json")
+PROFILES_PATH = os.path.join(str(DATA_DIR), "profiles.json")
 SELFCHECK_PATH = os.path.join(PROJECT_ROOT, "selfcheck.py")
 
 HOSTAPI_NAME = "Windows WASAPI"
@@ -37,7 +40,7 @@ LEVEL_REFRESH_MS = 100  # Meter refresh period.
 SELFCHECK_TIMEOUT_S = 600
 MODEL_PLACEHOLDER = "（未发现模型）"
 DEVICE_PLACEHOLDER = "（无可用设备）"
-CABLE_MISSING_TEXT = "CABLE（未启用，先跑 tools/devsetup.py --enable）"
+CABLE_MISSING_TEXT = "未发现 VB-CABLE，请运行文件夹里的“安装或卸载虚拟声卡.bat”"
 _CREATE_NO_WINDOW = 0x08000000 if os.name == "nt" else 0
 
 # Default device keyword hints (case-insensitive): input / monitor / virtual mic.
@@ -115,9 +118,9 @@ ADV_HOT_KEYS = ("index_rate", "threhold")
 #: Advanced params applied on restart (pipeline rebuild).
 ADV_RESTART_KEYS = ("block_time", "crossfade_time", "extra_time", "n_cpu")
 
-#: Model dir and voice profile path (both under models/).
+#: Bundled model assets and private user data are kept separately.
 MODELS_DIR = os.path.join(PROJECT_ROOT, "models")
-VOICE_PROFILE_PATH = os.path.join(MODELS_DIR, "voice_profile.npz")
+VOICE_PROFILE_PATH = os.path.join(str(DATA_DIR), "voice_profile.npz")
 
 #: Denoise-mode combo (label <-> profile value) and one-line hints.
 DENOISE_MODES = (("关", "off"), ("TorchGate", "torchgate"), ("DFN3", "dfn3"))
@@ -241,7 +244,7 @@ def load_profiles(path=PROFILES_PATH):
     for key, value in PROFILE_TOP_DEFAULTS.items():
         data[key] = value
     if not os.path.isfile(path):
-        return data, "profiles.json 不存在，本次使用内置默认参数"
+        return data, "首次使用，已加载默认参数"
     try:
         with open(path, "r", encoding="utf-8") as f:
             raw = json.load(f)
@@ -269,12 +272,8 @@ def load_profiles(path=PROFILES_PATH):
 
 
 def save_profiles(profiles, path=PROFILES_PATH):
-    """Atomically rewrite profiles.json (UTF-8, tmp file + replace)."""
-    tmp = path + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as f:
-        json.dump(profiles, f, ensure_ascii=False, indent=2)
-        f.write("\n")
-    os.replace(tmp, path)
+    """A failed save leaves the old settings intact and cleans up its own temporary file."""
+    atomic_write_json(path, profiles)
 
 
 # Model / device enumeration
@@ -486,7 +485,7 @@ class App:
             "-THREHOLD-": self._clamp_adv("-THREHOLD-", init["profile"]["threhold"]),
             "-INDEX-RATE-": self._clamp_adv("-INDEX-RATE-", init["profile"]["index_rate"]),
         }
-        self.window = sg.Window("变声器", self._build_layout(init), finalize=True, resizable=False)
+        self.window = sg.Window("变声器 · v%s" % VERSION, self._build_layout(init), finalize=True, resizable=False)
         try:
             self.window["-MONITOR-"].update(value=self.monitor_on)
         except Exception:
@@ -586,6 +585,10 @@ class App:
         for k, v in entry.items():
             if v is not None:
                 merged[k] = v
+        # The folder can move between drives; resolved model paths always come from this scan.
+        if model.get("pth"):
+            merged["pth"] = model["pth"]
+            merged["index"] = model.get("index") or ""
         return key, self._sanitize_profile(merged)
 
     def _set_profile_value(self, display, value_key, value):
@@ -996,7 +999,7 @@ class App:
         try:
             save_profiles(self.profiles, self.profiles_path)
         except Exception:
-            print("[profiles] 写盘失败: %s" % traceback.format_exc(), file=sys.stderr)
+            log_error("[profiles] 写盘失败，保留旧配置，稍后重试: %s" % traceback.format_exc())
             return
         self.dirty = False
 
@@ -1738,11 +1741,14 @@ class App:
             self._set_status("已停止")
 
     def _remember_devices(self, in_dev, mon_dev):
-        """Remember input/monitor choices; placeholders are never stored."""
-        if in_dev and in_dev != DEVICE_PLACEHOLDER:
-            self._set_top_value("input_device", in_dev)
-        if mon_dev and mon_dev != DEVICE_PLACEHOLDER:
-            self._set_top_value("monitor_device", mon_dev)
+        """Persist a device selection together instead of replacing the file twice in a row."""
+        changed = False
+        for key, value in (("input_device", in_dev), ("monitor_device", mon_dev)):
+            if value and value != DEVICE_PLACEHOLDER and self.profiles.get(key) != value:
+                self.profiles[key] = value
+                changed = True
+        if changed:
+            self._mark_dirty()
 
     def _on_device_combo(self, values):
         """Swap input/monitor devices live; only remember while stopped."""
@@ -2408,7 +2414,7 @@ class App:
         saver = getattr(gate, "save_profile", None)
         if not callable(saver):
             raise RuntimeError("VoiceGate 缺少 save_profile()")
-        os.makedirs(MODELS_DIR, exist_ok=True)
+        os.makedirs(os.path.dirname(VOICE_PROFILE_PATH), exist_ok=True)
         from app.voice_profiles import backup_profile
         backup_profile(VOICE_PROFILE_PATH)
         try:
@@ -2659,13 +2665,13 @@ class App:
     # Run / teardown
 
     def _report_error(self, title, message):
+        log_error("[%s]\n%s" % (title, message))
         if self.smoke:
-            print("[%s]\n%s" % (title, message), file=sys.stderr)
             return
         try:
             sg.popup_error(message, title=title)
         except Exception:
-            print("[%s]\n%s" % (title, message), file=sys.stderr)
+            pass
 
     def run(self):
         """Run the event loop; per-event errors pop up without exiting."""

@@ -11,8 +11,8 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 from tools.package_source import source_files
 from engine.models import rvc_root
+from app.version import VERSION
 
-VERSION = "0.1.0"
 SKIP_DIRS = {"__pycache__", ".git", ".cache"}
 PRIVATE_NAMES = {"profiles.json", "voice_profile.npz", "runtime.local.txt", "config.json"}
 
@@ -90,6 +90,7 @@ def build_bundle(target, rvc=None, default_model=None):
             if path.is_dir():
                 copy_tree(path, target / "RVC" / "runtime" / "Lib" / "site-packages" / path.name)
     marker = {"version": VERSION, "edition": "windows-x64-cu118-offline",
+              "portable": True, "user_data_directory": "data", "cache_directory": "cache",
               "default_model": default_model.name, "network_required": False,
               "includes_personal_voiceprint": False}
     (target / "offline_bundle.json").write_text(json.dumps(marker, indent=2) + "\n", encoding="utf-8")
@@ -99,9 +100,14 @@ def build_bundle(target, rvc=None, default_model=None):
             if path.name == "config.json" and path != target / "RVC" / "configs" / "inuse" / "config.json":
                 continue
             raise ValueError("Private local file found in bundle: %s" % path)
+    return write_manifest(target)
+
+
+def write_manifest(target):
+    target = Path(target)
     manifest = {}
     for path in sorted(target.rglob("*")):
-        if path.is_file():
+        if path.is_file() and path.name != "bundle_manifest.json":
             h = hashlib.sha256()
             with path.open("rb") as stream:
                 for chunk in iter(lambda: stream.read(1024 * 1024), b""):

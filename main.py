@@ -12,20 +12,27 @@ PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
+from app.runtime import (AlreadyRunningError, InstanceLock, configure_runtime,
+                         install_logging, log_error, migrate_legacy_data)
+
 
 def main():
+    configure_runtime()
     try:
         os.chdir(PROJECT_ROOT)
     except OSError:
         pass
     smoke = bool(os.environ.get("BSMOKE"))
 
-    import app.gui as gui
+    with InstanceLock():
+        install_logging()
+        migrate_legacy_data()
+        import app.gui as gui
 
-    profiles, profiles_error = gui.load_profiles()
-    if profiles_error:
-        print("[profiles] %s" % profiles_error, file=sys.stderr)
-    return gui.run_app(profiles=profiles, profiles_error=profiles_error, smoke=smoke)
+        profiles, profiles_error = gui.load_profiles()
+        if profiles_error:
+            log_error("[profiles] %s" % profiles_error)
+        return gui.run_app(profiles=profiles, profiles_error=profiles_error, smoke=smoke)
 
 
 if __name__ == "__main__":
@@ -36,12 +43,13 @@ if __name__ == "__main__":
         raise
     except Exception:
         _tb = traceback.format_exc()
-        print(_tb, file=sys.stderr)
+        log_error(_tb)
         if not _smoke:
             try:
                 import FreeSimpleGUI as sg
 
-                sg.popup_error("变声器启动失败：\n\n%s" % _tb, title="变声器")
+                message = str(sys.exc_info()[1]) if isinstance(sys.exc_info()[1], AlreadyRunningError) else _tb
+                sg.popup_error("变声器启动失败：\n\n%s" % message, title="变声器")
             except Exception:
                 pass
         sys.exit(1)

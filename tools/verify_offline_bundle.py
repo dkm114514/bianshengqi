@@ -18,6 +18,8 @@ def deny_network(*args, **kwargs):
 def main(full=False):
     if not (ROOT / "offline_bundle.json").is_file():
         raise RuntimeError("Run this check from the staged/installed offline application")
+    from app.runtime import configure_runtime
+    configure_runtime(ROOT)
     # Keep local sockets available for multiprocessing; block connections to remote hosts.
     original_connect = socket.socket.connect
     def connect(sock, address):
@@ -42,6 +44,7 @@ def main(full=False):
     from dsp.voice_gate import VoiceGate
     assert rvc_root().resolve() == (ROOT / "RVC").resolve()
     assert not (ROOT / "models" / "voice_profile.npz").exists()
+    assert not (ROOT / "data" / "voice_profile.npz").exists()
     entries = ModelRegistry.scan()
     assert entries, "No bundled voice model found"
     marker = json.loads((ROOT / "offline_bundle.json").read_text(encoding="utf-8"))
@@ -59,6 +62,7 @@ def main(full=False):
               "torch": torch.__version__, "cuda_available": torch.cuda.is_available(),
               "voice_model": Path(entry["pth"]).name, "vad_probability": probability,
               "speaker_dimensions": gate.embed_dim, "dfn_finite": True,
+              "portable_cache": os.environ["TORCH_HOME"],
               "remote_python_network_blocked": True}
     if full:
         from engine.pipeline import VoicePipeline

@@ -1,4 +1,5 @@
 @echo off
+setlocal
 chcp 65001 >nul
 cd /d "%~dp0"
 
@@ -28,7 +29,7 @@ if not exist "%RVC_RUNTIME%" (
   exit /b 1
 )
 
-"%RVC_RUNTIME%" -X utf8 "%~dp0main.py"
+"%RVC_RUNTIME%" -B -X utf8 "%~dp0main.py"
 set "RC=%ERRORLEVEL%"
 if not "%RC%"=="0" (
   echo.
